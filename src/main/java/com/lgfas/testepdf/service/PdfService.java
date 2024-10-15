@@ -5,17 +5,11 @@ import com.lgfas.testepdf.repository.PdfRepository;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Service;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-
-import java.text.NumberFormat;
-import java.text.ParseException;
-import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class PdfService {
@@ -31,35 +25,45 @@ public class PdfService {
         PDFTextStripper pdfStripper = new PDFTextStripper();
         String text = pdfStripper.getText(document);
         document.close();
+        System.out.println("Texto extraído do pdf: ");
+        System.out.println(text);
         return text;
     }
 
-    public void processarDados(String textoPdf) throws ParseException {
-        // Regex para capturar o consumo médio diário
-        Pattern pattern = Pattern.compile("Consumo Médio Diário \\(KWh\\):\\s*(\\d+\\.\\d{3},\\d{2})");
+    public void processarDados(String textoPdf) {
+        // Regex para capturar os valores
+        Pattern pattern = Pattern.compile("(\\d{1,3}(?:\\.\\d{3})*,\\d{2})\\s+(\\d{1,3}(?:\\.\\d{3})*,\\d{2})\\s+(\\d{1,3}(?:\\.\\d{3})*,\\d{2})\\s+(\\d{1,3}(?:\\.\\d{3})*,\\d{2})");
+
+        // Variáveis para armazenar os valores extraídos
+        Double ponta = null;
+        Double foraPonta = null;
+        Double pontaTot = null;
+        Double foraPontaTot = null;
+
+        // Capturar os valores
         Matcher matcher = pattern.matcher(textoPdf);
-
         if (matcher.find()) {
-            String valorTexto = matcher.group(1);  // Captura o valor numérico
-            System.out.println("Valor encontrado: " + valorTexto);
+            ponta = Double.parseDouble(matcher.group(1).replace(".", "").replace(",", "."));
+            foraPonta = Double.parseDouble(matcher.group(2).replace(".", "").replace(",", "."));
+            pontaTot = Double.parseDouble(matcher.group(3).replace(".", "").replace(",", "."));
+            foraPontaTot = Double.parseDouble(matcher.group(4).replace(".", "").replace(",", "."));
 
-            // Converter o valor de string para Double (considerando o formato PT-BR)
-            Double consumoMedioDiario = converterParaDouble(valorTexto);
-
-            // Salvar no banco de dados
-            Pdf pdf = new Pdf();
-            pdf.setConsumoMedioDiario(consumoMedioDiario);
-            pdfRepository.save(pdf);
-
-            System.out.println("Valor salvo: " + consumoMedioDiario);
+            System.out.println("PONTA: " + ponta);
+            System.out.println("FORA PONTA: " + foraPonta);
+            System.out.println("PONTA/TOT: " + pontaTot);
+            System.out.println("FORA PONTA/TOT: " + foraPontaTot);
+        } else {
+            System.out.println("Nenhum valor encontrado.");
         }
-    }
 
-    // Método auxiliar para converter string de valor no formato PT-BR (ex: "2.445,33") para Double
-    private Double converterParaDouble(String valorTexto) throws ParseException {
-        NumberFormat format = NumberFormat.getInstance(new Locale("pt", "BR"));
-        Number number = format.parse(valorTexto);
-        return number.doubleValue();
+        // Salvar os dados no banco de dados
+        Pdf pdf = new Pdf();
+        pdf.setDemandaPonta(ponta);
+        pdf.setDemandaForaPonta(foraPonta);
+        pdf.setConsumoPonta(pontaTot);
+        pdf.setConsumoForaPonta(foraPontaTot);
+
+        pdfRepository.save(pdf);
     }
 }
 
