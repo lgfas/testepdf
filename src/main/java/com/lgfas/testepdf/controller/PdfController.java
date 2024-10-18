@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.text.ParseException;
 
 @RestController
 @RequestMapping("/pdf")
@@ -22,7 +21,7 @@ public class PdfController {
     }
 
     @PostMapping("/upload-pdf")
-    public ResponseEntity<String> uploadPdf(@RequestParam("file") MultipartFile file, Long clienteId) throws IOException, ParseException {
+    public ResponseEntity<String> uploadPdf(@RequestParam("file") MultipartFile file, @RequestParam("clienteId")Long clienteId) throws IOException{
         String textoPdf = pdfService.extractPdfText(file);
         pdfService.processarDados(textoPdf, clienteId);
         return ResponseEntity.ok("Dados do PDF processados e salvos com sucesso");
