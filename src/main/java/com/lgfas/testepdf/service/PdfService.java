@@ -1,6 +1,10 @@
 package com.lgfas.testepdf.service;
 
+import com.lgfas.testepdf.model.Cliente;
+import com.lgfas.testepdf.model.HistoricoConsumo;
 import com.lgfas.testepdf.model.Pdf;
+import com.lgfas.testepdf.repository.ClienteRepository;
+import com.lgfas.testepdf.repository.HistoricoConsumoRepository;
 import com.lgfas.testepdf.repository.PdfRepository;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -14,10 +18,12 @@ import java.util.regex.Pattern;
 @Service
 public class PdfService {
 
-    private final PdfRepository pdfRepository;
+    private final ClienteRepository clienteRepository;
+    private final HistoricoConsumoRepository historicoConsumoRepository;
 
-    public PdfService(PdfRepository pdfRepository) {
-        this.pdfRepository = pdfRepository;
+    public PdfService(ClienteRepository clienteRepository, HistoricoConsumoRepository historicoConsumoRepository) {
+        this.clienteRepository = clienteRepository;
+        this.historicoConsumoRepository = historicoConsumoRepository;
     }
 
     public String extractPdfText(MultipartFile file) throws IOException {
@@ -30,40 +36,39 @@ public class PdfService {
         return text;
     }
 
-    public void processarDados(String textoPdf) {
-        // Regex para capturar os valores
-        Pattern pattern = Pattern.compile("(\\d{1,3}(?:\\.\\d{3})*,\\d{2})\\s+(\\d{1,3}(?:\\.\\d{3})*,\\d{2})\\s+(\\d{1,3}(?:\\.\\d{3})*,\\d{2})\\s+(\\d{1,3}(?:\\.\\d{3})*,\\d{2})");
+    public void processarDados(String textoPdf, Long clienteId) {
+        // Regex para capturar os valores da tabela (PONTA, FORA PONTA, PONTA/TOT, FORA PONTA)
+        Pattern pattern = Pattern.compile("\\d{3}\\s+(\\d{1,3}(?:\\.\\d{3})*,\\d{2})\\s+(\\d{1,3}(?:\\.\\d{3})*,\\d{2})\\s+\\d{1,3},\\d{2}\\s+(\\d{1,3}(?:\\.\\d{3})*,\\d{2})\\s+(\\d{1,3}(?:\\.\\d{3})*,\\d{2})");
 
         // Variáveis para armazenar os valores extraídos
-        Double ponta = null;
-        Double foraPonta = null;
-        Double pontaTot = null;
-        Double foraPontaTot = null;
-
-        // Capturar os valores
         Matcher matcher = pattern.matcher(textoPdf);
-        if (matcher.find()) {
-            ponta = Double.parseDouble(matcher.group(1).replace(".", "").replace(",", "."));
-            foraPonta = Double.parseDouble(matcher.group(2).replace(".", "").replace(",", "."));
-            pontaTot = Double.parseDouble(matcher.group(3).replace(".", "").replace(",", "."));
-            foraPontaTot = Double.parseDouble(matcher.group(4).replace(".", "").replace(",", "."));
 
-            System.out.println("PONTA: " + ponta);
-            System.out.println("FORA PONTA: " + foraPonta);
-            System.out.println("PONTA/TOT: " + pontaTot);
-            System.out.println("FORA PONTA/TOT: " + foraPontaTot);
-        } else {
-            System.out.println("Nenhum valor encontrado.");
+        // Recuperar o cliente pelo ID
+        Cliente cliente = clienteRepository.findById(clienteId).orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
+
+        // Loop para capturar todos os conjuntos de valores na tabela
+        while (matcher.find()) {
+            Double demandaPonta = Double.parseDouble(matcher.group(1).replace(".", "").replace(",", "."));
+            Double demandaForaPonta = Double.parseDouble(matcher.group(2).replace(".", "").replace(",", "."));
+            Double consumoPonta = Double.parseDouble(matcher.group(3).replace(".", "").replace(",", "."));
+            Double consumoForaPonta = Double.parseDouble(matcher.group(4).replace(".", "").replace(",", "."));
+
+            System.out.println("PONTA: " + demandaPonta);
+            System.out.println("FORA PONTA: " + demandaForaPonta);
+            System.out.println("PONTA/TOT: " + consumoPonta);
+            System.out.println("FORA PONTA: " + consumoForaPonta);
+
+            // Criar um novo registro de histórico de consumo
+            HistoricoConsumo historicoConsumo = new HistoricoConsumo();
+            historicoConsumo.setDemandaPonta(demandaPonta);
+            historicoConsumo.setDemandaForaPonta(demandaForaPonta);
+            historicoConsumo.setConsumoPonta(consumoPonta);
+            historicoConsumo.setConsumoForaPonta(consumoForaPonta);
+            historicoConsumo.setCliente(cliente); // Associar ao cliente
+
+            // Salvar o histórico no banco de dados
+            historicoConsumoRepository.save(historicoConsumo);
         }
-
-        // Salvar os dados no banco de dados
-        Pdf pdf = new Pdf();
-        pdf.setDemandaPonta(ponta);
-        pdf.setDemandaForaPonta(foraPonta);
-        pdf.setConsumoPonta(pontaTot);
-        pdf.setConsumoForaPonta(foraPontaTot);
-
-        pdfRepository.save(pdf);
     }
 }
 

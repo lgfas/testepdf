@@ -22,9 +22,9 @@ public class PdfController {
     }
 
     @PostMapping("/upload-pdf")
-    public ResponseEntity<String> uploadPdf(@RequestParam("file") MultipartFile file) throws IOException, ParseException {
+    public ResponseEntity<String> uploadPdf(@RequestParam("file") MultipartFile file, Long clienteId) throws IOException, ParseException {
         String textoPdf = pdfService.extractPdfText(file);
-        pdfService.processarDados(textoPdf);
+        pdfService.processarDados(textoPdf, clienteId);
         return ResponseEntity.ok("Dados do PDF processados e salvos com sucesso");
     }
 }
